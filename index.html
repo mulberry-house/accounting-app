@@ -1,12 +1,25 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Restaurant Accounting App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>売上会計アプリ</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>売上会計アプリ</h1>
+
+  <div id="order-section"></div>
+  <div id="order-history"></div>
+
+  <button id="toggle-menu-form">▶ メニューを追加・編集</button>
+  <div id="menu-form" style="display:none;">
+    <h2>メニューを追加・編集</h2>
+    <input type="text" id="item-name" placeholder="商品名" />
+    <input type="number" id="item-price" placeholder="価格" />
+    <button onclick="addMenuItem()">追加</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
 </html>
