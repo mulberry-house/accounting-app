@@ -1,4 +1,23 @@
+承知いたしました。セットメニュー機能を実装しましょう。
 
+既存の`App.jsx`ファイルに、以下の変更を加えることでセットメニュー機能を追加できます。
+
+主な変更点は以下の通りです。
+
+1.  **セットメニュー用のStateを追加**: セットメニューの一覧、新しいセットメニューの名前と価格を管理するstateを追加します。
+2.  **セットメニュー管理UIを追加**: セットメニューの追加、編集、削除を行うためのUIを作成します。
+3.  **注文機能の修正**:
+      * 注文時にセットメニューを選択できるよう、ドロップダウンメニューを追加します。
+      * セットメニューが選択された場合、合計金額がセット料金になるように注文追加時のロジックを修正します。
+      * 注文履歴に、どのセットメニューが適用されたかを表示します。
+
+-----
+
+### `src/App.jsx` の変更内容
+
+元のコードを以下のように修正してください。
+
+```jsx
 import { useState, useEffect } from "react";
 
 export default function App() {
@@ -13,6 +32,13 @@ export default function App() {
         ];
   });
 
+  // ========== ▼ ここから追加 ▼ ==========
+  const [setMenus, setSetMenus] = useState(() => {
+    const saved = localStorage.getItem("setMenus");
+    return saved ? JSON.parse(saved) : [{ name: "Aセット", price: 1000 }];
+  });
+  // ========== ▲ ここまで追加 ▲ ==========
+
   const [orders, setOrders] = useState(() => {
     const saved = localStorage.getItem("orders");
     return saved ? JSON.parse(saved) : [];
@@ -24,10 +50,22 @@ export default function App() {
   const [newProductPrice, setNewProductPrice] = useState("");
   const [newProductCategory, setNewProductCategory] = useState("");
   const [expandedCategories, setExpandedCategories] = useState({});
+  
+  // ========== ▼ ここから追加 ▼ ==========
+  const [newSetMenuName, setNewSetMenuName] = useState("");
+  const [newSetMenuPrice, setNewSetMenuPrice] = useState("");
+  const [selectedSetMenu, setSelectedSetMenu] = useState("");
+  // ========== ▲ ここまで追加 ▲ ==========
 
   useEffect(() => {
     localStorage.setItem("products", JSON.stringify(products));
   }, [products]);
+
+  // ========== ▼ ここから追加 ▼ ==========
+  useEffect(() => {
+    localStorage.setItem("setMenus", JSON.stringify(setMenus));
+  }, [setMenus]);
+  // ========== ▲ ここまで追加 ▲ ==========
 
   useEffect(() => {
     localStorage.setItem("orders", JSON.stringify(orders));
@@ -42,22 +80,41 @@ export default function App() {
         subtotal: qty * product.price,
       };
     });
+    
+    // ========== ▼ ここから変更 ▼ ==========
+    let total;
+    let appliedSetMenu = null;
 
-    const total = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+    if (selectedSetMenu) {
+      const setMenu = setMenus.find((m) => m.name === selectedSetMenu);
+      if (setMenu) {
+        total = setMenu.price;
+        appliedSetMenu = setMenu;
+      }
+    } else {
+      total = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+    }
+
     const newOrder = {
       customer,
       items: orderItems,
       total,
+      appliedSetMenu, // 適用されたセットメニュー情報を保存
       date: new Date().toLocaleString(),
       paid: false,
     };
+    // ========== ▲ ここまで変更 ▲ ==========
 
     setOrders([newOrder, ...orders]);
     setCustomer("");
     setQuantities({});
+    // ========== ▼ ここから追加 ▼ ==========
+    setSelectedSetMenu("");
+    // ========== ▲ ここまで追加 ▲ ==========
   };
 
   const handleAddProduct = () => {
+    // ... (変更なし)
     if (!newProductName || !newProductPrice || !newProductCategory) return;
     setProducts([
       ...products,
@@ -73,39 +130,69 @@ export default function App() {
   };
 
   const handleDeleteProduct = (index) => {
+    // ... (変更なし)
     setProducts(products.filter((_, i) => i !== index));
   };
 
   const handleUpdateProduct = (index, field, value) => {
+    // ... (変更なし)
     const updated = [...products];
     updated[index][field] = field === "price" ? parseInt(value) : value;
     setProducts(updated);
   };
 
+  // ========== ▼ ここから追加 ▼ ==========
+  const handleAddSetMenu = () => {
+    if (!newSetMenuName || !newSetMenuPrice) return;
+    setSetMenus([
+      ...setMenus,
+      { name: newSetMenuName, price: parseInt(newSetMenuPrice) },
+    ]);
+    setNewSetMenuName("");
+    setNewSetMenuPrice("");
+  };
+
+  const handleDeleteSetMenu = (index) => {
+    setSetMenus(setMenus.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateSetMenu = (index, field, value) => {
+    const updated = [...setMenus];
+    updated[index][field] = field === "price" ? parseInt(value) : value;
+    setSetMenus(updated);
+  };
+  // ========== ▲ ここまで追加 ▲ ==========
+
   const handleDeleteOrder = (index) => {
+    // ... (変更なし)
     const updatedOrders = [...orders];
     updatedOrders.splice(index, 1);
     setOrders(updatedOrders);
   };
 
   const handleMarkAsPaid = (index) => {
+    // ... (変更なし)
     const updatedOrders = [...orders];
     updatedOrders[index].paid = true;
     setOrders(updatedOrders);
   };
 
+  // ... (totalSales, productSales, unpaidOrders, paidOrders, groupedProducts, toggleCategory の各変数は変更なし)
   const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
 
   const productSales = products.map((p) => {
     let totalQty = 0;
     let totalAmount = 0;
     orders.forEach((order) => {
-      order.items.forEach((item) => {
-        if (item.name === p.name) {
-          totalQty += item.qty;
-          totalAmount += item.subtotal;
-        }
-      });
+      // セットメニュー適用時は、個々の商品の売上には加算しない
+      if (!order.appliedSetMenu) {
+        order.items.forEach((item) => {
+          if (item.name === p.name) {
+            totalQty += item.qty;
+            totalAmount += item.subtotal;
+          }
+        });
+      }
     });
     return {
       name: p.name,
@@ -141,6 +228,20 @@ export default function App() {
           value={customer}
           onChange={(e) => setCustomer(e.target.value)}
         />
+        {/* ========== ▼ ここから追加 ▼ ========== */}
+        <select
+          value={selectedSetMenu}
+          onChange={(e) => setSelectedSetMenu(e.target.value)}
+          className="border p-2 w-full rounded"
+        >
+          <option value="">セットメニューを選択 (未選択の場合は通常会計)</option>
+          {setMenus.map((menu, i) => (
+            <option key={i} value={menu.name}>
+              {menu.name} ({menu.price}円)
+            </option>
+          ))}
+        </select>
+        {/* ========== ▲ ここまで追加 ▲ ========== */}
         {Object.entries(groupedProducts).map(([category, items]) => (
           <div key={category}>
             <button
@@ -182,9 +283,60 @@ export default function App() {
           注文を追加
         </button>
       </div>
-
+      
+      {/* ========== ▼ ここから追加（セットメニュー管理UI）▼ ========== */}
+      <div className="bg-white shadow p-4 rounded-lg space-y-4">
+        <h2 className="text-xl font-semibold">セットメニューを追加・編集</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input
+            className="border p-2 rounded"
+            placeholder="セット名"
+            value={newSetMenuName}
+            onChange={(e) => setNewSetMenuName(e.target.value)}
+          />
+          <input
+            type="number"
+            className="border p-2 rounded"
+            placeholder="セット料金"
+            value={newSetMenuPrice}
+            onChange={(e) => setNewSetMenuPrice(e.target.value)}
+          />
+          <button
+            onClick={handleAddSetMenu}
+            className="bg-green-500 text-white px-4 py-2 rounded"
+          >
+            ＋追加
+          </button>
+        </div>
+        <ul className="space-y-2">
+          {setMenus.map((menu, i) => (
+            <li key={i} className="grid grid-cols-3 gap-2 items-center">
+              <input
+                value={menu.name}
+                onChange={(e) => handleUpdateSetMenu(i, "name", e.target.value)}
+                className="border px-2 py-1 rounded"
+              />
+              <input
+                type="number"
+                value={menu.price}
+                onChange={(e) => handleUpdateSetMenu(i, "price", e.target.value)}
+                className="border px-2 py-1 rounded text-right"
+              />
+              <button
+                onClick={() => handleDeleteSetMenu(i)}
+                className="text-red-500"
+              >
+                🗑
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {/* ========== ▲ ここまで追加 ▲ ========== */}
+      
       <div className="bg-white shadow p-4 rounded-lg space-y-4">
         <h2 className="text-xl font-semibold">メニューを追加・編集</h2>
+        {/* ... (変更なし) ... */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
           <input
             className="border p-2 rounded"
@@ -246,6 +398,7 @@ export default function App() {
         <h2 className="text-xl font-semibold text-yellow-700">未会計の注文</h2>
         {unpaidOrders.map((order, index) => (
           <div key={index} className="bg-yellow-50 p-4 rounded-lg">
+            {/* ... (中身はほぼ同じ、合計金額の表示部分だけ変更) ... */}
             <div className="flex justify-between">
               <div>
                 <div className="font-bold">{order.customer}</div>
@@ -271,12 +424,24 @@ export default function App() {
                 (item, i) =>
                   item.qty > 0 && (
                     <li key={i}>
-                      {item.name}: {item.qty}個（{item.subtotal}円）
+                      {item.name}: {item.qty}個
+                      {/* ========== ▼ ここから変更 ▼ ========== */}
+                      {!order.appliedSetMenu && `（${item.subtotal}円）`}
+                      {/* ========== ▲ ここまで変更 ▲ ========== */}
                     </li>
                   )
               )}
             </ul>
-            <div className="font-semibold">合計: {order.total}円</div>
+            {/* ========== ▼ ここから変更 ▼ ========== */}
+            <div className="font-semibold">
+              合計: {order.total}円
+              {order.appliedSetMenu && (
+                <span className="text-sm font-normal ml-2">
+                  ({order.appliedSetMenu.name}適用)
+                </span>
+              )}
+            </div>
+            {/* ========== ▲ ここまで変更 ▲ ========== */}
           </div>
         ))}
       </div>
@@ -285,6 +450,7 @@ export default function App() {
         <h2 className="text-xl font-semibold text-green-700">会計済みの注文</h2>
         {paidOrders.map((order, index) => (
           <div key={index} className="bg-green-50 p-4 rounded-lg">
+            {/* ... (中身はほぼ同じ、合計金額の表示部分だけ変更) ... */}
             <div className="flex justify-between">
               <div>
                 <div className="font-bold">{order.customer}</div>
@@ -302,12 +468,24 @@ export default function App() {
                 (item, i) =>
                   item.qty > 0 && (
                     <li key={i}>
-                      {item.name}: {item.qty}個（{item.subtotal}円）
+                      {item.name}: {item.qty}個
+                      {/* ========== ▼ ここから変更 ▼ ========== */}
+                      {!order.appliedSetMenu && `（${item.subtotal}円）`}
+                      {/* ========== ▲ ここまで変更 ▲ ========== */}
                     </li>
                   )
               )}
             </ul>
-            <div className="font-semibold">合計: {order.total}円</div>
+            {/* ========== ▼ ここから変更 ▼ ========== */}
+            <div className="font-semibold">
+              合計: {order.total}円
+              {order.appliedSetMenu && (
+                <span className="text-sm font-normal ml-2">
+                  ({order.appliedSetMenu.name}適用)
+                </span>
+              )}
+            </div>
+            {/* ========== ▲ ここまで変更 ▲ ========== */}
           </div>
         ))}
       </div>
@@ -326,3 +504,4 @@ export default function App() {
     </div>
   );
 }
+```
