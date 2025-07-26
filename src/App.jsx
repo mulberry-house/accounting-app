@@ -167,9 +167,7 @@ export default function App() {
     return { name: p.name, qty: totalQty, amount: totalAmount };
   }), [orders, products]);
 
-  // ========== ▼ ここから変更 ▼ ==========
   // 部門ごとの売上を計算する
-  // セットメニューが適用された注文であっても、個々の商品の価格を基に部門売上を計算する
   const departmentSales = useMemo(() => {
     const sales = {};
     orders.forEach((order) => {
@@ -185,7 +183,31 @@ export default function App() {
     });
     return sales;
   }, [orders, products]);
-  // ========== ▲ ここまで変更 ▲ ==========
+
+  // ========== ▼ ここから追加 ▼ ==========
+  // セットメニューごとの売上を計算する
+  const setMenuSales = useMemo(() => {
+    const sales = {};
+    setMenus.forEach((menu) => {
+      sales[menu.name] = { qty: 0, amount: 0 };
+    });
+
+    orders.forEach((order) => {
+      if (order.appliedSetMenu) {
+        const menuName = order.appliedSetMenu.name;
+        if (sales[menuName]) {
+          sales[menuName].qty += 1;
+          sales[menuName].amount += order.total;
+        }
+      }
+    });
+
+    return Object.entries(sales).map(([name, data]) => ({
+      name,
+      ...data,
+    }));
+  }, [orders, setMenus]);
+  // ========== ▲ ここまで追加 ▲ ==========
 
   const unpaidOrders = orders.filter((o) => !o.paid);
   const paidOrders = orders.filter((o) => o.paid);
@@ -354,6 +376,7 @@ export default function App() {
         ))}
       </div>
 
+      {/* ========== ▼ ここから変更 ▼ ========== */}
       <div className="bg-yellow-100 p-4 rounded-lg space-y-4">
         <h2 className="text-xl font-semibold">売上集計</h2>
         <div>🧾 総売上金額: <strong>{totalSales}円</strong></div>
@@ -378,7 +401,18 @@ export default function App() {
             ))}
             </ul>
         </div>
+        <div>
+            <h3 className="font-semibold mt-2">セットメニュー別 売上</h3>
+            <ul className="list-disc list-inside">
+            {setMenuSales.map((s, i) => (
+                s.qty > 0 && <li key={i}>
+                {s.name}: {s.qty}個、{s.amount}円
+                </li>
+            ))}
+            </ul>
+        </div>
       </div>
+      {/* ========== ▲ ここまで変更 ▲ ========== */}
 
       <div className="space-y-4">
         <button
