@@ -29,17 +29,14 @@ export default function App() {
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
   const [newProductCategory, setNewProductCategory] = useState("");
-  const [newProductDepartment, setNewProductDepartment] = useState(""); // ◀ 追加
+  const [newProductDepartment, setNewProductDepartment] = useState("");
   const [expandedCategories, setExpandedCategories] = useState({});
   
   const [newSetMenuName, setNewSetMenuName] = useState("");
   const [newSetMenuPrice, setNewSetMenuPrice] = useState("");
   const [selectedSetMenu, setSelectedSetMenu] = useState("");
 
-  // ========== ▼ ここから追加 ▼ ==========
-  // 編集エリアの開閉状態を管理するState
   const [isEditorVisible, setIsEditorVisible] = useState(false);
-  // ========== ▲ ここまで追加 ▲ ==========
 
   useEffect(() => {
     localStorage.setItem("products", JSON.stringify(products));
@@ -92,7 +89,6 @@ export default function App() {
   };
 
   const handleAddProduct = () => {
-    // ========== ▼ ここから変更 ▼ ==========
     if (!newProductName || !newProductPrice || !newProductCategory || !newProductDepartment) return;
     setProducts([
       ...products,
@@ -100,14 +96,13 @@ export default function App() {
         name: newProductName,
         price: parseInt(newProductPrice),
         category: newProductCategory,
-        department: newProductDepartment, // ◀ 追加
+        department: newProductDepartment,
       },
     ]);
     setNewProductName("");
     setNewProductPrice("");
     setNewProductCategory("");
-    setNewProductDepartment(""); // ◀ 追加
-    // ========== ▲ ここまで変更 ▲ ==========
+    setNewProductDepartment("");
   };
 
   const handleDeleteProduct = (index) => {
@@ -172,32 +167,25 @@ export default function App() {
     return { name: p.name, qty: totalQty, amount: totalAmount };
   }), [orders, products]);
 
-  // ========== ▼ ここから追加 ▼ ==========
+  // ========== ▼ ここから変更 ▼ ==========
   // 部門ごとの売上を計算する
+  // セットメニューが適用された注文であっても、個々の商品の価格を基に部門売上を計算する
   const departmentSales = useMemo(() => {
     const sales = {};
     orders.forEach((order) => {
-      // セットメニュー適用時は、個々の商品の売上には加算しない
-      if (!order.appliedSetMenu) {
-        order.items.forEach((item) => {
-          if (item.qty > 0) {
-            const product = products.find((p) => p.name === item.name);
-            if (product && product.department) {
-              sales[product.department] = (sales[product.department] || 0) + item.subtotal;
-            }
+      order.items.forEach((item) => {
+        if (item.qty > 0) {
+          const product = products.find((p) => p.name === item.name);
+          if (product && product.department) {
+            sales[product.department] =
+              (sales[product.department] || 0) + item.subtotal;
           }
-        });
-      }
-    });
-    // セットメニューが適用された注文の売上を、仮に「セット」部門として集計する
-    orders.forEach(order => {
-        if (order.appliedSetMenu) {
-            sales["セットメニュー"] = (sales["セットメニュー"] || 0) + order.total;
         }
+      });
     });
     return sales;
   }, [orders, products]);
-  // ========== ▲ ここまで追加 ▲ ==========
+  // ========== ▲ ここまで変更 ▲ ==========
 
   const unpaidOrders = orders.filter((o) => !o.paid);
   const paidOrders = orders.filter((o) => o.paid);
@@ -370,13 +358,12 @@ export default function App() {
         <h2 className="text-xl font-semibold">売上集計</h2>
         <div>🧾 総売上金額: <strong>{totalSales}円</strong></div>
         
-        {/* ========== ▼ ここから変更 ▼ ========== */}
         <div>
           <h3 className="font-semibold mt-2">部門別 売上</h3>
           <ul className="list-disc list-inside">
             {Object.entries(departmentSales).map(([department, amount]) => (
                 <li key={department}>
-                {department}: {amount}円
+                  {department}: {amount}円
                 </li>
             ))}
           </ul>
@@ -391,10 +378,8 @@ export default function App() {
             ))}
             </ul>
         </div>
-        {/* ========== ▲ ここまで変更 ▲ ========== */}
       </div>
 
-      {/* ========== ▼ ここから変更（UIを下に移動し、折りたたみ式に） ▼ ========== */}
       <div className="space-y-4">
         <button
           onClick={() => setIsEditorVisible(!isEditorVisible)}
@@ -525,7 +510,6 @@ export default function App() {
           </div>
         )}
       </div>
-      {/* ========== ▲ ここまで変更 ▲ ========== */}
     </div>
   );
 }
